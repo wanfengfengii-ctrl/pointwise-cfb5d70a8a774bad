@@ -1,0 +1,10 @@
+{
+  "segment_id": "morning",
+  "inventory_id": "lanxi-morning-01",
+  "operations": [
+    {"operation_id": "mix-01", "kind": "mix", "inputs": ["batch-A", "batch-B"], "outputs": [["mix-10", 10]]},
+    {"operation_id": "split-01", "kind": "split", "inputs": ["mix-10"], "outputs": [["bag-A", 6], ["bag-B", 4]]}
+  ],
+  "observations": [["bag-B", 4], ["bag-A", 6]],
+  "request": {"allowed_bags": ["bag-B", "bag-A"], "required_grams": 8}
+}

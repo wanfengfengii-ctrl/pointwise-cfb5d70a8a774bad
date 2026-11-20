@@ -1,0 +1,4 @@
+[
+  {"batch_id": "batch-A", "net_grams": 7, "ticket_id": "scale-101"},
+  {"batch_id": "batch-B", "net_grams": 3, "ticket_id": "scale-102"}
+]
