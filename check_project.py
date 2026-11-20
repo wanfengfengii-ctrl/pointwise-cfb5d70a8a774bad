@@ -1,4 +1,9 @@
-"""Run this project's full unittest suite from the repository root."""
+"""Run this project's full unittest suite from the repository root.
+
+Beyond the original net-weight regressions this also exercises the V2 joint
+business (issue, accept, two-request review, reopen and rollback).  Any failing
+check exits non-zero.
+"""
 import sys
 import unittest
 

@@ -11,7 +11,7 @@ python3 -B check_project.py
 python3 -B demo.py
 ```
 
-直接运行完整 unittest 套件可用 `python3 -B -m unittest discover -s tests -t . -v`。样例读取 `samples/weighings.json` 和 `samples/workday.json`，使用两份临时 SQLite 库。它把 7 g 和 3 g 回混为 10 g，再分装为两只 6 g、4 g 袋。外站在源库关闭后签存 8 g 申请，重开后读回按袋序取 6 g、2 g 的原回执。
+直接运行完整 unittest 套件可用 `python3 -B -m unittest discover -s tests -t . -v`。样例读取 `samples/weighings.json` 和 `samples/workday.json`，使用两份临时 SQLite 库。它把 7 g 和 3 g 回混为 10 g，再分装为两只 6 g、4 g 袋。外站在源库关闭后签存 8 g 申请，重开后读回按袋序取 6 g、2 g 的原回执。`demo.py` 另演示 V2 合查：回混争用、未选袋占量、断源重开，以及合查写入失败回撤后重试。
 
 ## 一天的交班
 
@@ -24,6 +24,9 @@ python3 -B demo.py
 7. 外站验证随件标识和正文绑定，持久保存实际接纳版本。
 8. 复核员提交允许袋及所需克数。按包序取量，每袋最多贡献本袋净量，满足后结束。不足时也保留已取量和缺口。
 9. 外站一并签存采用包、要求、取量、状态与回执。次班读取持久结果。
+10. 两张留样单需要同时兑现时，发行员按明确封定盘点与有序选袋另发 V2 件。正文只列所选袋身份与净量、相关原批代号，以及子集能力表。
+11. 外站接纳 V2 件后，复核员按两单原序提交允许袋、原批代号与整克需求。合查只用这一件的证据，同一份分配裁定两张单。
+12. 可行时签存逐袋取量，不可行也签存 `short`；两单与所采纳件一起固定，重开按复核号领取同一正文。
 
 ## Python 接口
 
@@ -42,9 +45,15 @@ python3 -B demo.py
 | `exchange.readback` | `read_issued_totals`、`read_issued_totals_for_inventory` 和 `read_accepted_totals` 从各自所属库读取固定件。未知件返回 `None`。 |
 | `review.publish` | `review_total(db, piece_id, allowed_bags, required_grams)` 返回 `StoredReview`，状态为 `satisfied` 或 `short`。 |
 | `review.readback` | `read_review(db, review_id)` 领取原件、原要求、用量、结论和回执。未知正整数号返回 `None`。 |
+| `exchange.joint_issue` | `issue_joint(db, inventory_id, selected_bags)` 在源库按选袋顺序发行 V2 件正文文本，同盘点同有序选袋重办返回原文。 |
+| `exchange.joint_receive` | `receive_joint(db, piece_id, inventory_id, body)` 在外站接纳 V2 文本或 UTF-8 字节，返回正整数接纳号；同包同文重投沿用原号，异文报 `PieceConflict`。 |
+| `review.joint_publish` | `review_joint(db, piece_id, requests)` 只用已接纳的 V2 件合查两张留样单，返回含 `status` 和两单 `uses` 的结果字典。 |
+| `review.joint_readback` | `read_joint_review(db, review_id)` 按复核号领取签存结果，未知正整数号返回 `None`。 |
 
 克数必须是非负整数。小数、布尔值、空值和缺项会报 `ValueError`。SQLite 数量列使用十进制文本，业务运算使用 Python 整数。具名零克袋参加对账，空段也可封定。所有具名字段保留原字符串，袋账按字符串码点排序。允许袋按集合解释，零克要求仍会检查每个允许袋。只持久保存正取量。
 
 同批号、同克数和同称量单返回首收回执。改克数或称量单报 `BatchConflict`，并保留冲突记录和原首收。原批全库只能投用一次，产出身份按段查找，段内的历史产出名不能再作新产出，已登记的原批名也保留给原批。实盘重复袋号会在比较前拒绝。合法盘差报告保持操作段开放。签存使用已接纳件，未知件报 `LookupError`，未知袋报 `ValueError`。写入错误会传播，由入口事务撤销本次业务写入。低层保存函数用于调用方已经开始的写事务。
 
 V1 正文包含 `format`、`piece_id`、`inventory_id` 和顺序固定的 `bags`。接纳会校验随件标识与正文绑定以及袋行合法性。独立核对多张单时，每张单都使用原包净量。签存的取样指引不会扣减下一张单可核对的包净量。
+
+V2 正文在 `format` 为 `2` 之外增加按选袋顺序的 `bags`、对外原批代号 `batch_codes` 和匿名证据 `evidence`。证据是选袋子集与原批子集上的能力表，逐项给出该原批子集可同时到达该选袋子集的整克上界，已计入未选袋占用的原批份额；它不公开未选袋身份、净量、成分或厂内节点、操作与路线。合查时每单只取自己允许袋、自己原批代号的整克数，并用同一份证据约束两单联合取量，可行则给出逐袋取量，不可行也签存结论。

@@ -77,3 +77,10 @@ CREATE TABLE IF NOT EXISTS issued_totals (
     inventory_id TEXT NOT NULL UNIQUE REFERENCES inventories(inventory_id),
     body TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS issued_joint (
+    piece_id TEXT PRIMARY KEY NOT NULL,
+    inventory_id TEXT NOT NULL REFERENCES inventories(inventory_id),
+    selected_bags TEXT NOT NULL,
+    body TEXT NOT NULL
+);
